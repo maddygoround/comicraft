@@ -1,11 +1,5 @@
 import type { Metadata } from 'next'
-import { Space_Grotesk } from 'next/font/google'
 import './globals.css'
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700']
-})
 
 export const metadata: Metadata = {
   title: 'ComicGenius - AI Comic Creator',
@@ -50,7 +44,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="ComicGenius" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
-      <body className={spaceGrotesk.className}>
+      <body className="font-body">
         {children}
       </body>
     </html>
