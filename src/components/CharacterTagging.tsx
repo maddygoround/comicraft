@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Users, Plus, Wand2, Upload, X } from 'lucide-react';
 import { Character } from '../types';
-import { generateAnimeCharacter } from '../services/geminiService';
+import { AIGenerateCharacterImage } from '../ai';
 
 interface CharacterTaggingProps {
   characters: Character[];
@@ -58,7 +58,7 @@ export const CharacterTagging: React.FC<CharacterTaggingProps> = ({
   const handleGenerateAnime = async (id: string, name: string) => {
     setIsGeneratingAnime(id);
     try {
-      const generatedImage = await generateAnimeCharacter(name);
+      const generatedImage = await AIGenerateCharacterImage(name);
       const character = characters.find(c => c.id === id);
       if (character) {
         const newPhoto = {

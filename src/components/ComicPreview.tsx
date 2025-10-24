@@ -8,11 +8,14 @@ import {
     RotateCcw,
     MessageSquare,
     X,
-    AlertTriangle
+    AlertTriangle,
+    Video,
+    Loader2
 } from 'lucide-react';
 import { Card } from './ui/Card';
 import { ComicPanel } from '../types';
 import { downloadComicPDF } from '../services/pdfService';
+import { AIGenerateVideo, AIDownloadVideo } from '../ai';
 
 interface ComicPreviewProps {
     panels: ComicPanel[];
@@ -24,23 +27,62 @@ interface ComicPreviewProps {
 interface ComicPanelDisplayProps {
     panel: ComicPanel;
     onClick: () => void;
+    onGenerateVideo: () => void;
+    isGeneratingVideo: boolean;
+    hasGeneratedVideo: boolean;
+    onViewVideo: () => void;
 }
 
-const ComicPanelDisplay: React.FC<ComicPanelDisplayProps> = ({ panel, onClick }) => {
+const ComicPanelDisplay: React.FC<ComicPanelDisplayProps> = ({ panel, onClick, onGenerateVideo, isGeneratingVideo, hasGeneratedVideo, onViewVideo }) => {
     return (
         <div
-            className="bg-background-dark rounded-lg overflow-hidden border-2 border-primary shadow-pop-out-dark flex flex-col group transition-all duration-200 hover:-translate-y-1 cursor-pointer"
-            onClick={onClick}
+            className="bg-background-dark rounded-lg overflow-hidden border-2 border-primary shadow-pop-out-dark flex flex-col group transition-all duration-200 hover:-translate-y-1"
         >
             <div className="relative">
                 <img
                     src={panel.generatedImage}
                     alt={`Panel ${panel.panelNumber}`}
-                    className="w-full h-64 object-cover"
+                    className="w-full h-64 object-cover cursor-pointer"
+                    onClick={onClick}
                 />
                 <div className="absolute top-3 left-3 bg-primary text-text-light text-xs font-bold px-3 py-1.5 rounded-lg border-2 border-black shadow-pop-out z-10">
                     Panel {panel.panelNumber}
                 </div>
+                {hasGeneratedVideo ? (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onViewVideo();
+                        }}
+                        className="absolute top-3 right-3 bg-secondary text-text-light px-3 py-2 rounded-lg border-2 border-black font-bold shadow-pop-out hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 z-10"
+                        title="View generated video"
+                    >
+                        <Video size={16} strokeWidth={2.5} />
+                        <span className="text-xs">View Video</span>
+                    </button>
+                ) : (
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onGenerateVideo();
+                        }}
+                        disabled={isGeneratingVideo}
+                        className="absolute top-3 right-3 bg-accent-green text-text-light px-3 py-2 rounded-lg border-2 border-black font-bold shadow-pop-out hover:-translate-y-0.5 transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed z-10"
+                        title="Generate video from this panel"
+                    >
+                        {isGeneratingVideo ? (
+                            <>
+                                <Loader2 size={16} className="animate-spin" strokeWidth={2.5} />
+                                <span className="text-xs">Generating...</span>
+                            </>
+                        ) : (
+                            <>
+                                <Video size={16} strokeWidth={2.5} />
+                                <span className="text-xs">Generate Video</span>
+                            </>
+                        )}
+                    </button>
+                )}
             </div>
 
             <div className="p-4 flex-1 flex flex-col">
@@ -72,13 +114,18 @@ export const ComicPreview: React.FC<ComicPreviewProps> = ({
     onBack,
 }) => {
     const [selectedPanel, setSelectedPanel] = useState<ComicPanel | null>(null);
+    const [generatingVideoForPanel, setGeneratingVideoForPanel] = useState<number | null>(null);
+    const [videoProgress, setVideoProgress] = useState<string>('');
+    const [generatedVideos, setGeneratedVideos] = useState<Map<number, string>>(new Map());
+    const [videoError, setVideoError] = useState<string | null>(null);
+    const [viewingVideoPanel, setViewingVideoPanel] = useState<number | null>(null);
 
     const handleDownload = async () => {
         try {
-            const filename = `comicgenius-comic-${new Date().toISOString().split('T')[0]}.pdf`;
+            const filename = `comic-craft-comic-${new Date().toISOString().split('T')[0]}.pdf`;
             await downloadComicPDF(panels, filename, {
-                title: 'ComicGenius Comic',
-                author: 'ComicGenius',
+                title: 'Comic Craft Comic',
+                author: 'Comic Craft',
                 includePageNumbers: true,
                 includeTitlePage: true
             });
@@ -91,6 +138,49 @@ export const ComicPreview: React.FC<ComicPreviewProps> = ({
     const handleShare = () => {
         // TODO: Implement share functionality
         console.log('Share comic');
+    };
+
+    const handleGenerateVideo = async (panel: ComicPanel) => {
+        try {
+            setGeneratingVideoForPanel(panel.panelNumber);
+            setVideoError(null);
+            setVideoProgress('Starting video generation...');
+
+            const videoBlobUrl = await AIGenerateVideo(
+                panel.generatedImage,
+                panel.narration,
+                panel.characters,
+                (status) => {
+                    setVideoProgress(status);
+                }
+            );
+
+            // Store the generated video blob URL
+            setGeneratedVideos(prev => new Map(prev).set(panel.panelNumber, videoBlobUrl));
+            setVideoProgress('');
+
+            // Show success message and automatically open video viewer
+            setViewingVideoPanel(panel.panelNumber);
+        } catch (error) {
+            console.error('Error generating video:', error);
+            setVideoError(error instanceof Error ? error.message : 'Failed to generate video');
+            alert(`Failed to generate video: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setGeneratingVideoForPanel(null);
+        }
+    };
+
+    const handleDownloadVideo = async (panelNumber: number) => {
+        const videoUrl = generatedVideos.get(panelNumber);
+        if (videoUrl) {
+            try {
+                const filename = `comic-panel-${panelNumber}-video-${new Date().toISOString().split('T')[0]}.mp4`;
+                await AIDownloadVideo(videoUrl, filename);
+            } catch (error) {
+                console.error('Error downloading video:', error);
+                alert('Failed to download video. Please try again.');
+            }
+        }
     };
 
     if (panels.length === 0) {
@@ -163,6 +253,21 @@ export const ComicPreview: React.FC<ComicPreviewProps> = ({
                 </div>
             )}
 
+            {/* Video Generation Progress */}
+            {generatingVideoForPanel !== null && videoProgress && (
+                <div className="mb-4 p-4 bg-accent-green/20 border-2 border-accent-green rounded-lg">
+                    <div className="flex items-center gap-3">
+                        <Loader2 size={20} className="animate-spin text-accent-green" strokeWidth={2.5} />
+                        <div>
+                            <p className="text-sm font-bold text-text-dark">
+                                Generating video for Panel {generatingVideoForPanel}
+                            </p>
+                            <p className="text-xs text-text-dark/70">{videoProgress}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Comic Panels */}
             <div className="flex-1 overflow-y-auto">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
@@ -171,6 +276,10 @@ export const ComicPreview: React.FC<ComicPreviewProps> = ({
                             key={panel.panelNumber}
                             panel={panel}
                             onClick={() => setSelectedPanel(panel)}
+                            onGenerateVideo={() => handleGenerateVideo(panel)}
+                            isGeneratingVideo={generatingVideoForPanel === panel.panelNumber}
+                            hasGeneratedVideo={generatedVideos.has(panel.panelNumber)}
+                            onViewVideo={() => setViewingVideoPanel(panel.panelNumber)}
                         />
                     ))}
                 </div>
@@ -220,13 +329,25 @@ export const ComicPreview: React.FC<ComicPreviewProps> = ({
                             {/* Modal Content */}
                             <div className="p-6">
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                                    {/* Image */}
+                                    {/* Image or Video */}
                                     <div>
                                         <img
                                             src={selectedPanel.generatedImage}
                                             alt={`Panel ${selectedPanel.panelNumber}`}
                                             className="w-full h-auto rounded-lg border-2 border-black shadow-pop-out-dark"
                                         />
+                                        {generatedVideos.has(selectedPanel.panelNumber) && (
+                                            <button
+                                                onClick={() => {
+                                                    setViewingVideoPanel(selectedPanel.panelNumber);
+                                                    setSelectedPanel(null);
+                                                }}
+                                                className="w-full mt-4 px-4 py-3 bg-secondary text-white rounded-lg border-2 border-black font-bold shadow-pop-out hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2"
+                                            >
+                                                <Video size={20} strokeWidth={2.5} />
+                                                Watch Generated Video
+                                            </button>
+                                        )}
                                     </div>
 
                                     {/* Text Content */}
@@ -257,6 +378,69 @@ export const ComicPreview: React.FC<ComicPreviewProps> = ({
                                             </div>
                                         )}
                                     </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Video Viewer Modal */}
+            {viewingVideoPanel !== null && generatedVideos.has(viewingVideoPanel) && (
+                <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
+                    <div className="w-full max-w-5xl max-h-[90vh] overflow-y-auto">
+                        <div className="bg-background-dark rounded-lg border-2 border-primary overflow-hidden shadow-pop-out-dark">
+                            {/* Modal Header */}
+                            <div className="p-6 border-b-2 border-primary flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-lg bg-secondary border-2 border-black flex items-center justify-center shadow-pop-out">
+                                        <Video className="text-text-light" size={24} strokeWidth={2.5} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-primary">Panel {viewingVideoPanel} - Video</h3>
+                                        <p className="text-text-dark/60 font-medium">Generated with dialogue and narration</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={() => setViewingVideoPanel(null)}
+                                    className="p-2 rounded-lg bg-gray-700 text-white border-2 border-black hover:-translate-y-0.5 transition-all duration-200 shadow-pop-out"
+                                >
+                                    <X size={24} strokeWidth={2.5} />
+                                </button>
+                            </div>
+
+                            {/* Modal Content */}
+                            <div className="p-6">
+                                <video
+                                    src={generatedVideos.get(viewingVideoPanel)}
+                                    controls
+                                    autoPlay
+                                    className="w-full h-auto rounded-lg border-2 border-black shadow-pop-out-dark"
+                                >
+                                    Your browser does not support the video tag.
+                                </video>
+
+                                {/* Video Actions */}
+                                <div className="flex gap-4 mt-6">
+                                    <button
+                                        onClick={() => handleDownloadVideo(viewingVideoPanel)}
+                                        className="flex-1 px-6 py-3 bg-accent-green text-text-light rounded-lg border-2 border-black font-bold shadow-pop-out hover:-translate-y-1 transition-all duration-200 flex items-center justify-center gap-2"
+                                    >
+                                        <Download size={20} strokeWidth={2.5} />
+                                        Download Video
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            const panel = panels.find(p => p.panelNumber === viewingVideoPanel);
+                                            if (panel) {
+                                                setViewingVideoPanel(null);
+                                                setSelectedPanel(panel);
+                                            }
+                                        }}
+                                        className="flex-1 px-6 py-3 bg-secondary text-white rounded-lg border-2 border-black font-bold shadow-pop-out hover:-translate-y-1 transition-all duration-200"
+                                    >
+                                        View Panel Details
+                                    </button>
                                 </div>
                             </div>
                         </div>

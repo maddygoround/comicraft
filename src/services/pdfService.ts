@@ -14,8 +14,8 @@ export const generateComicPDF = async (
     options: PDFGenerationOptions = {}
 ): Promise<Blob> => {
     const {
-        title = 'ComicGenius Comic',
-        author = 'ComicGenius',
+        title = 'Comic Craft Comic',
+        author = 'Comic Craft',
         includePageNumbers = true,
         includeTitlePage = true
     } = options;
@@ -49,10 +49,10 @@ export const generateComicPDF = async (
         pdf.setFont('helvetica', 'normal');
         pdf.text(`by ${author}`, pageWidth / 2, pageHeight / 2 + 10, { align: 'center' });
 
-        // Generated with ComicGenius
+        // Generated with Comic Craft
         pdf.setFontSize(12);
         pdf.setTextColor(100, 100, 100);
-        pdf.text('Generated with ComicGenius', pageWidth / 2, pageHeight - 50, { align: 'center' });
+        pdf.text('Generated with Comic Craft', pageWidth / 2, pageHeight - 50, { align: 'center' });
 
         // Reset text color
         pdf.setTextColor(0, 0, 0);
@@ -174,7 +174,7 @@ export const generateComicPDF = async (
 
 export const downloadComicPDF = async (
     panels: ComicPanel[],
-    filename: string = 'comicgenius-comic.pdf',
+    filename: string = 'comic-craft-comic.pdf',
     options?: PDFGenerationOptions
 ): Promise<void> => {
     try {

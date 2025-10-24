@@ -8,7 +8,7 @@ import { StyleSelector } from '../components/StyleSelector';
 import { ComicPreview } from '../components/ComicPreview';
 import { Character, ComicStyle, ComicPanel } from '../types';
 import { ComicStyleName, ColorPalette, BorderStyle } from '../types';
-import { extractCharacters, generateComicPanels } from '../services/geminiService';
+import { AIExtractCharacters, AIGenerateComicPanels, initializeAI } from '../ai';
 
 const steps = [
   { id: 1, name: 'Story', icon: '📝' },
@@ -31,10 +31,15 @@ export default function Home() {
   const [generationProgress, setGenerationProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
+    // Initialize AI services on mount
+    initializeAI().catch(console.error);
+  }, []);
+
+  useEffect(() => {
     if (story.length > 100) {
       const extractChars = async () => {
         try {
-          const extractedNames = await extractCharacters(story);
+          const extractedNames = await AIExtractCharacters(story);
           const newCharacters = extractedNames
             .filter(name => !characters.some(char => char.name.toLowerCase() === name.toLowerCase()))
             .map(name => ({
@@ -77,7 +82,7 @@ export default function Home() {
       setGenerationProgress({ current: 0, total: 0 });
 
       try {
-        const generatedPanels = await generateComicPanels(
+        const generatedPanels = await AIGenerateComicPanels(
           story,
           characters,
           style,
@@ -160,7 +165,7 @@ export default function Home() {
                   <Sparkles className="text-black" size={28} strokeWidth={3} />
                 </div>
                 <h1 className="text-4xl font-display tracking-wider text-primary text-shadow-comic">
-                  COMICGENIUS
+                  COMIC CRAFT
                 </h1>
               </div>
 
@@ -209,8 +214,8 @@ export default function Home() {
             <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mx-auto mb-6 animate-bounce border-4 border-black">
               <Sparkles className="text-black" size={40} strokeWidth={3} />
             </div>
-            <h3 className="text-4xl font-display text-primary mb-4 text-shadow-comic">CREATING!</h3>
-            <p className="text-text-dark/80 mb-8 text-lg font-semibold">Your comic is being generated...</p>
+            <h3 className="text-4xl font-display text-primary mb-4 text-shadow-comic">CRAFTING!</h3>
+            <p className="text-text-dark/80 mb-8 text-lg font-semibold">Your comic is being crafted...</p>
 
             {/* Progress Bar */}
             <div className="w-full h-6 bg-gray-800 rounded-full border-2 border-black overflow-hidden shadow-inner">
