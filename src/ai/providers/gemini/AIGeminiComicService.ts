@@ -122,16 +122,31 @@ export class AIGeminiComicService extends AIBaseProvider implements IAIComicServ
           .map(c => fileToGenerativePart(c.photos[0].file!))
       );
 
-      const dialogueSummary = panel.characters
+      // Build dialogue context for emotional accuracy
+      const dialogueContext = panel.characters
         .filter(c => c.dialogue)
-        .map(c => `${c.name} says: "${c.dialogue}"`).join(' ');
+        .map(c => `${c.name} is saying: "${c.dialogue}"`)
+        .join('. ');
 
-      const prompt = `Generate a single comic book panel in a "${request.style.style}" style with a "${request.style.palette}" color palette.
-    The scene is: "${panel.narration}".
-    Characters present: ${panel.characters.map(c => c.name).join(', ')}.
-    ${dialogueSummary}.
-    Crucially, show the characters interacting with dynamic and expressive body language that reflects the conversation. Do not just show static portraits.
-    Use the provided reference images to inform the characters' appearance and clothing, but create a completely new, original illustration that fits the scene.`;
+      const prompt = `Create a single comic book panel in "${request.style.style}" style with a "${request.style.palette}" color palette.
+
+THE SCENE: ${panel.narration}
+
+CHARACTERS PRESENT: ${panel.characters.map(c => c.name).join(', ')}
+
+WHAT'S HAPPENING: ${dialogueContext}
+
+IMPORTANT INSTRUCTIONS:
+- Show the exact moment described in the scene
+- Characters' facial expressions and body language MUST match what they're saying and feeling
+- Make the action dynamic and expressive - NO static poses
+- Characters should be actively interacting with each other or reacting to the situation
+- Use the provided character reference images to maintain their appearance
+- DO NOT add speech bubbles, text, or captions to the image
+- Make it visually dramatic and engaging like a professional comic book panel
+
+Style it with ${request.style.border} borders and create strong visual storytelling through composition, lighting, and character acting.`;
+
 
       let generatedImage = 'https://via.placeholder.com/300x400.png?text=Generation+Failed';
       try {

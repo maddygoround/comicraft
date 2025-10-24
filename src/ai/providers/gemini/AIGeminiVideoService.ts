@@ -77,9 +77,7 @@ Maintain the artistic style and mood of the original comic panel while adding mo
           numberOfVideos: 1,
           durationSeconds: 8,
           resolution: '720p',
-          enhancePrompt: true,
           aspectRatio: aspectRatio,
-          generateAudio: true,
         },
       });
 
